@@ -34,7 +34,6 @@ def login(api_url, username=None, password=None):
     if username is None:
         username = input("Username: ")
     if password is None:
-        import getpass
         password = getpass.getpass("Password: ")
     data = {"username": username, "password": password}
     try:
@@ -59,6 +58,92 @@ def load_token():
             return f.read().strip()
     return None
 
+def create_takhtit(api_url, account_uuid):
+    """
+    Create a Takhtit for the given account using the Mushaf with short_name 'hafs'.
+    """
+    token = load_token()
+    if not token:
+        print("No token found. Please login first.")
+        sys.exit(1)
+
+    headers = {
+        "Authorization": f"Token {token}",
+        "accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        resp = requests.get(f"{api_url}/mushafs/", headers=headers)
+        if resp.status_code != 200:
+            print(f"Failed to fetch mushafs: {resp.status_code} {resp.text}")
+            sys.exit(1)
+        mushafs = resp.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to fetch mushafs: {e}")
+        sys.exit(1)
+
+    hafs_uuid = None
+    for mushaf in mushafs:
+        if mushaf.get("short_name") == "hafs":
+            hafs_uuid = mushaf.get("uuid")
+            break
+
+    if not hafs_uuid:
+        print("Could not find Mushaf with short_name 'hafs'.")
+        sys.exit(1)
+
+    payload = {"mushaf_uuid": hafs_uuid, "account_uuid": account_uuid}
+
+    try:
+        response = requests.post(f"{api_url}/takhtits/", headers=headers, json=payload)
+        print("Create Takhtit response:")
+        print(response.status_code, response.text)
+        
+        if response.status_code == 201:
+            print("Takhtit created successfully.")
+        else:
+            print("Failed to create Takhtit.")
+            sys.exit(1)
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to create Takhtit: {e}")
+        sys.exit(1)
+
+def import_file(api_url, type_name, uuid, file_path):
+    token = load_token()
+    if not token:
+        print("No token found. Please login first.")
+        sys.exit(1)
+
+    if not os.path.isfile(file_path):
+        print(f"File not found: {file_path}")
+        sys.exit(1)
+
+    headers = {
+        "Authorization": f"Token {token}",
+        "accept": "application/json",
+    }
+
+    url = f"{api_url}/takhtits/{uuid}/import/?type={type_name}"
+
+    try:
+        with open(file_path, "rb") as f:
+            files = {"file": (os.path.basename(file_path), f, "application/json")}
+            response = requests.post(url, headers=headers, files=files)
+        
+        print("Import response:")
+        print(response.status_code, response.text)
+        
+        if response.status_code not in [200, 201]:
+            print(f"Import failed with status code: {response.status_code}")
+            sys.exit(1)
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to import file: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error during import: {e}")
+        sys.exit(1)
+
 def main(args):
     if len(args) < 2:
         print("Usage: python script.py <command> [args...]")
@@ -66,6 +151,8 @@ def main(args):
         print("  login <api_url> [username password] [--non-interactive]")
         print("  import-mushaf <input_json_file> <api_url>")
         print("  import-translations <translations_dir> <api_url>")
+        print("  create-takhtit <api_url> <account_uuid>")
+        print("  import-takhtit <api_url> <type> <uuid> <json_file>")
         sys.exit(1)
 
     command = args[1]
@@ -102,6 +189,16 @@ def main(args):
             else:
                 print("Usage: python script.py login <api_url> [username password] [--not-interactive]")
                 sys.exit(1)
+    elif command == "create-takhtit":
+        if len(args) != 4:
+            print("Usage: python script.py create-takhtit <api_url> <account_uuid>")
+            sys.exit(1)
+        create_takhtit(args[2], args[3])
+    elif command == "import-takhtit":
+        if len(args) != 6:
+            print("Usage: python script.py import-takhtit <api_url> <type> <uuid> <json_file>")
+            sys.exit(1)
+        import_file(args[2], args[3], args[4], args[5])
     elif command == "import-mushaf":
         if len(args) != 4:
             print("Usage: python script.py import-mushaf <input_json_file> <api_url>")
@@ -118,6 +215,9 @@ def main(args):
         try:
             response = send_file_to_api(input_file, api_url, token)
             print(f"Status code: {response.status_code}")
+            if response.status_code not in [200, 201]:
+                print(f"Import failed with status code: {response.status_code}")
+                sys.exit(1)
             try:
                 print("Response:", response.json())
             except Exception:
@@ -139,17 +239,32 @@ def main(args):
         if not json_files:
             print(f"No .json files found in directory '{translations_dir}'.")
             sys.exit(1)
+        
+        success_count = 0
+        failed_count = 0
+        
         for file_path in json_files:
             print(f"Importing {file_path}...")
             try:
                 response = send_translation_to_api(file_path, api_url, token)
                 print(f"  Status code: {response.status_code}")
+                if response.status_code in [200, 201]:
+                    success_count += 1
+                    print(f"Success")
+                else:
+                    failed_count += 1
+                    print(f"Failed with status code: {response.status_code}")
                 try:
                     print("  Response:", response.json())
                 except Exception:
                     print("  Response (non-JSON):", response.text)
             except Exception as e:
-                print(f"  Failed to import {file_path}: {e}")
+                failed_count += 1
+                print(f"Failed to import {file_path}: {e}")
+        
+        print(f"\nImport Summary: {success_count} successful, {failed_count} failed")
+        if failed_count > 0:
+            sys.exit(1)
     elif command == "import-translation":
         if len(args) != 4:
             print("Usage: python script.py import-translation <input_json_file> <api_url>")
@@ -166,6 +281,9 @@ def main(args):
         try:
             response = send_translation_to_api(input_file, api_url, token)
             print(f"Status code: {response.status_code}")
+            if response.status_code not in [200, 201]:
+                print(f"Import failed with status code: {response.status_code}")
+                sys.exit(1)
             try:
                 print("Response:", response.json())
             except Exception:
