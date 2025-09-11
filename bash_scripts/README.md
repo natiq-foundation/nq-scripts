@@ -56,6 +56,8 @@ A sophisticated bash script that provides complete installation, configuration, 
 curl -fsSL https://raw.githubusercontent.com/NatiqQuran/nq-scripts/main/bash_scripts/install_quran_api.sh | bash
 ```
 
+> After installation completes successfully, proceed to data import using `importer.sh` (see [Post-Install: Import Data](#post-install-import-data)).
+
 ## 📦 Installation Methods
 
 <details>
@@ -453,6 +455,28 @@ DEBUG=1 ./install_quran_api.sh --debug
 # Debug restart
 DEBUG=1 ./install_quran_api.sh restart
 ```
+## Post-Install: Import Data
+
+After the API is installed and running, use the importer script to load Mushaf, translations, create a Takhtit, and import breakers:
+
+```bash
+# First clone repository and run importer
+git clone https://github.com/natiq-foundation/nq-scripts.git
+cd nq-scripts/bash_scripts
+bash importer.sh
+```
+
+The script will prompt you for:
+- API server URL (e.g., `http://localhost:8000`)
+- Username and password for login
+- Account UUID of the Takhtit creator (not the superuser)
+- Takhtit UUID (for subsequent breaker imports)
+
+It will automatically:
+- Generate Mushaf and translations via the parser
+- Import Mushaf and translations into the API
+- Create a Takhtit using the provided Account UUID
+- Import page, hizb, and juz breakers into the Takhtit
 
 ## 🤝 Contributing
 
