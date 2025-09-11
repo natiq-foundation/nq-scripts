@@ -21,6 +21,8 @@ pip install -r requirements.txt
 
 ## Usage
 
+> Tip: If you prefer an automated flow, after installing the API with the bash installer, you can run `bash_scripts/importer.sh` which walks you through login, mushaf import, translations import, creating a Takhtit, and importing breakers.
+
 ### 1. Login
 Authenticate and store your API token for future requests.
 
@@ -66,6 +68,7 @@ Create a Takhtit for an account (uses `hafs` mushaf under the hood):
 ```bash
 python script.py create-takhtit <account_uuid> <api_url>
 ```
+- The `<account_uuid>` is the UUID of the Takhtit creator account (not a superuser UUID).
 
 ---
 
