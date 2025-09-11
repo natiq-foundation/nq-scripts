@@ -4,6 +4,8 @@ import requests
 import getpass
 import json
 import glob
+import secrets
+import string
 
 TOKEN_FILE = os.path.expanduser("~/.importer_token")
 
@@ -58,10 +60,22 @@ def load_token():
             return f.read().strip()
     return None
 
-def create_takhtit(account_uuid, api_url):
-    """
-    Create a Takhtit for the given account using the Mushaf with short_name 'hafs'.
-    """
+def generate_strong_password(length: int = 16) -> str:
+    if length < 8:
+        length = 8
+
+    alphabet = string.ascii_letters + string.digits + "-_@#$%"
+    password_chars = [
+        secrets.choice(string.ascii_lowercase),
+        secrets.choice(string.ascii_uppercase),
+        secrets.choice(string.digits),
+        secrets.choice("-_@#$%"),
+    ]
+    password_chars += [secrets.choice(alphabet) for _ in range(length - len(password_chars))]
+    secrets.SystemRandom().shuffle(password_chars)
+    return "".join(password_chars)
+
+def register_user(api_url, user_payload=None):
     token = load_token()
     if not token:
         print("No token found. Please login first.")
@@ -72,6 +86,44 @@ def create_takhtit(account_uuid, api_url):
         "accept": "application/json",
         "Content-Type": "application/json",
     }
+
+    if user_payload is None:
+        generated_username = "uthmantaha"
+        generated_password = generate_strong_password()
+        user_payload = {
+            "username": generated_username,
+            "password": generated_password,
+            "password2": generated_password,
+            "email": "example@gmail.com",
+            "first_name": "Uthman",
+            "last_name": "Taha",
+        }
+
+    try:
+        resp = requests.post(f"{api_url}/auth/register/", headers=headers, json=user_payload)
+        print("Register user response:")
+        print(resp.status_code, resp.text)
+        if resp.status_code not in [200, 201]:
+            print("Failed to register user.")
+            sys.exit(1)
+        return resp.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to register user: {e}")
+        sys.exit(1)
+
+def create_takhtit(account_uuid, api_url):
+    token = load_token()
+    if not token:
+        print("No token found. Please login first.")
+        sys.exit(1)
+
+    headers = {
+        "Authorization": f"Token {token}",
+        "accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    _ = register_user(api_url)
 
     try:
         resp = requests.get(f"{api_url}/mushafs/", headers=headers)
