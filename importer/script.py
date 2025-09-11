@@ -4,6 +4,8 @@ import requests
 import getpass
 import json
 import glob
+import secrets
+import string
 
 TOKEN_FILE = os.path.expanduser("~/.importer_token")
 
@@ -58,10 +60,22 @@ def load_token():
             return f.read().strip()
     return None
 
-def create_takhtit(api_url, account_uuid):
-    """
-    Create a Takhtit for the given account using the Mushaf with short_name 'hafs'.
-    """
+def generate_strong_password(length: int = 16) -> str:
+    if length < 8:
+        length = 8
+
+    alphabet = string.ascii_letters + string.digits + "-_@#$%"
+    password_chars = [
+        secrets.choice(string.ascii_lowercase),
+        secrets.choice(string.ascii_uppercase),
+        secrets.choice(string.digits),
+        secrets.choice("-_@#$%"),
+    ]
+    password_chars += [secrets.choice(alphabet) for _ in range(length - len(password_chars))]
+    secrets.SystemRandom().shuffle(password_chars)
+    return "".join(password_chars)
+
+def register_user(api_url, user_payload=None):
     token = load_token()
     if not token:
         print("No token found. Please login first.")
@@ -72,6 +86,44 @@ def create_takhtit(api_url, account_uuid):
         "accept": "application/json",
         "Content-Type": "application/json",
     }
+
+    if user_payload is None:
+        generated_username = "uthmantaha"
+        generated_password = generate_strong_password()
+        user_payload = {
+            "username": generated_username,
+            "password": generated_password,
+            "password2": generated_password,
+            "email": "example@gmail.com",
+            "first_name": "Uthman",
+            "last_name": "Taha",
+        }
+
+    try:
+        resp = requests.post(f"{api_url}/auth/register/", headers=headers, json=user_payload)
+        print("Register user response:")
+        print(resp.status_code, resp.text)
+        if resp.status_code not in [200, 201]:
+            print("Failed to register user.")
+            sys.exit(1)
+        return resp.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to register user: {e}")
+        sys.exit(1)
+
+def create_takhtit(account_uuid, api_url):
+    token = load_token()
+    if not token:
+        print("No token found. Please login first.")
+        sys.exit(1)
+
+    headers = {
+        "Authorization": f"Token {token}",
+        "accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    _ = register_user(api_url)
 
     try:
         resp = requests.get(f"{api_url}/mushafs/", headers=headers)
@@ -109,7 +161,7 @@ def create_takhtit(api_url, account_uuid):
         print(f"Failed to create Takhtit: {e}")
         sys.exit(1)
 
-def import_file(api_url, type_name, uuid, file_path):
+def import_takhtit(file_path, type_name, uuid, api_url):
     token = load_token()
     if not token:
         print("No token found. Please login first.")
@@ -151,21 +203,22 @@ def main(args):
         print("  login <api_url> [username password] [--non-interactive]")
         print("  import-mushaf <input_json_file> <api_url>")
         print("  import-translations <translations_dir> <api_url>")
-        print("  create-takhtit <api_url> <account_uuid>")
-        print("  import-takhtit <api_url> <type> <uuid> <json_file>")
+        print("  import-translation <input_json_file> <api_url>")
+        print("  create-takhtit <account_uuid> <api_url>")
+        print("  import-takhtit <json_file> <type> <uuid> <api_url>")
         sys.exit(1)
 
     command = args[1]
 
     if command == "login":
-        # Check for --not-interactive flag
+        # Check for --non-interactive flag
         if '--non-interactive' in args:
             try:
                 flag_index = args.index('--non-interactive')
                 # Remove the flag for easier indexing
                 args_wo_flag = args[:flag_index] + args[flag_index+1:]
                 if len(args_wo_flag) != 5:
-                    print("Usage: python script.py login <api_url> <username> <password> --not-interactive")
+                    print("Usage: python script.py login <api_url> <username> <password> --non-interactive")
                     sys.exit(1)
                 api_url = args_wo_flag[2]
                 username = args_wo_flag[3]
@@ -173,7 +226,7 @@ def main(args):
                 login(api_url, username, password)
                 return
             except Exception:
-                print("Usage: python script.py login <api_url> <username> <password> --not-interactive")
+                print("Usage: python script.py login <api_url> <username> <password> --non-interactive")
                 sys.exit(1)
         else:
             if len(args) == 3:
@@ -187,18 +240,8 @@ def main(args):
                 login(api_url, username, password)
                 return
             else:
-                print("Usage: python script.py login <api_url> [username password] [--not-interactive]")
+                print("Usage: python script.py login <api_url> [username password] [--non-interactive]")
                 sys.exit(1)
-    elif command == "create-takhtit":
-        if len(args) != 4:
-            print("Usage: python script.py create-takhtit <api_url> <account_uuid>")
-            sys.exit(1)
-        create_takhtit(args[2], args[3])
-    elif command == "import-takhtit":
-        if len(args) != 6:
-            print("Usage: python script.py import-takhtit <api_url> <type> <uuid> <json_file>")
-            sys.exit(1)
-        import_file(args[2], args[3], args[4], args[5])
     elif command == "import-mushaf":
         if len(args) != 4:
             print("Usage: python script.py import-mushaf <input_json_file> <api_url>")
@@ -291,6 +334,16 @@ def main(args):
         except Exception as e:
             print(f"Failed to send file: {e}")
             sys.exit(1)
+    elif command == "create-takhtit":
+        if len(args) != 4:
+            print("Usage: python script.py create-takhtit <account_uuid> <api_url>")
+            sys.exit(1)
+        create_takhtit(args[2], args[3])
+    elif command == "import-takhtit":
+        if len(args) != 6:
+            print("Usage: python script.py import-takhtit <json_file> <type> <uuid> <api_url>")
+            sys.exit(1)
+        import_takhtit(args[2], args[3], args[4], args[5])
     else:
         print(f"Unknown command: {command}")
         sys.exit(1)
