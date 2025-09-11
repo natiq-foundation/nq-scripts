@@ -177,5 +177,43 @@ if [ $TRANS_STATUS -ne 0 ]; then
     exit 1
 fi
 
+# Create takhtit
+read -p "Account UUID (of the Takhtit creator, not the superuser): " ACCOUNT_UUID
+log_info "Creating takhtit..."
+CREATE_TAKHTIT_STATUS=0
+python3 script.py create-takhtit "$ACCOUNT_UUID" "$SERVER_IP" || CREATE_TAKHTIT_STATUS=$?
+if [ $CREATE_TAKHTIT_STATUS -ne 0 ]; then
+    log_error "Creating takhtit failed!"
+    exit 1
+fi
+
+# Import page
+read -p "Takhtit UUID: " TAKHTIT_UUID
+log_info "Importing pages..."
+python3 script.py import-takhtit ../parser/data/breakers/ayah_breakers/page.json "page" "$TAKHTIT_UUID" "$SERVER_IP"
+PAGES_STATUS=$?
+if [ $PAGES_STATUS -ne 0 ]; then
+    log_error "Importing pages failed!"
+    exit 1
+fi
+
+# Import hizb
+log_info "Importing hizb..."
+python3 script.py import-takhtit ../parser/data/breakers/ayah_breakers/hizb.json "hizb" "$TAKHTIT_UUID" "$SERVER_IP"
+HIZB_STATUS=$?
+if [ $HIZB_STATUS -ne 0 ]; then
+    log_error "Importing hizb failed!"
+    exit 1
+fi
+
+# Import juz
+log_info "Importing juz..."
+python3 script.py import-takhtit ../parser/data/breakers/ayah_breakers/juz.json "juz" "$TAKHTIT_UUID" "$SERVER_IP"
+JUZ_STATUS=$?
+if [ $JUZ_STATUS -ne 0 ]; then
+    log_error "Importing juz failed!"
+    exit 1
+fi
+
 log_success "All operations completed successfully!"
 
