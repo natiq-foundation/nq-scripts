@@ -2,14 +2,13 @@
 
 # NatiqQuran API Setup Script
 # Description: A script to set up and run the NatiqQuran API project using Docker.
-# It handles Docker installation, project folder setup, and initial configuration.
+# It handles project folder setup and initial configuration.
 # Features: Complete lifecycle management, user-friendly, enhanced security, comprehensive logging
 # Version: 2.5
 # Author: Natiq dev Team
-# Usage: bash setup.sh [COMMAND] [OPTIONS]
+# Usage: bash install_quran_api.sh [COMMAND] [OPTIONS]
 #
 # Options:
-#   --no-install   Skip Docker installation
 #   --help         Show this help message
 #   --version      Show version information
 
@@ -229,75 +228,6 @@ get_public_ip() {
     echo "localhost"
 }
 
-# ==============================================================================
-# === DOCKER & FIREWALL MANAGEMENT
-# ==============================================================================
-
-check_docker_version() {
-    local current; current=$(docker --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-    [[ -n "$current" ]] && printf '%s\n%s\n' "$MIN_DOCKER_VERSION" "$current" | sort -V | head -1 | grep -q "^$MIN_DOCKER_VERSION"
-}
-
-# Install Docker using the official script
-install_docker() {
-    log_info "Installing Docker..."
-    command_exists curl || { log_error "curl is required but not found"; return 1; }
-    
-    local script="/tmp/docker-install.sh"
-    curl -fsSL https://get.docker.com -o "$script" || { log_error "Failed to download Docker installer"; return 1; }
-    
-    if bash "$script"; then
-        rm -f "$script"
-        if [[ $EUID -ne 0 ]] && ! groups "$USER" | grep -q docker; then
-            log_info "Adding user to docker group..."
-            sudo usermod -aG docker "$USER"
-            log_warning "Please re-login for docker group changes to take effect"
-        fi
-        log_success "Docker installed successfully"
-    else
-        rm -f "$script"; log_error "Docker installation failed"; return 1
-    fi
-}
-
-setup_docker() {
-    local skip_install="$1"
-    
-    if [[ "$skip_install" == "true" ]]; then
-        log_info "Skipping Docker installation as requested"
-        command_exists docker || { log_error "Docker not found and --no-install specified"; return 1; }
-    else
-        if command_exists docker && check_docker_version; then
-            log_success "Docker is already installed and up to date"
-        else
-            install_docker || return 1
-        fi
-    fi
-}
-
-setup_firewall() {
-    log_info "Setting up UFW firewall..."
-    
-    if ! command_exists ufw; then
-        if command_exists apt-get; then
-            sudo apt-get update -qq && sudo apt-get install -y ufw
-        else
-            log_warning "Cannot auto-install UFW. Please install it manually."
-            return 1
-        fi
-    fi
-
-    {
-        sudo ufw --force reset
-        sudo ufw default deny incoming
-        sudo ufw default allow outgoing
-        sudo ufw allow ssh
-        sudo ufw allow 80/tcp
-        sudo ufw allow 443/tcp
-        sudo ufw --force enable
-    } >/dev/null 2>&1
-    
-    log_success "UFW configured (SSH, HTTP, HTTPS allowed)"
-}
 
 # ==============================================================================
 # === PROJECT SETUP & CONFIGURATION
@@ -815,16 +745,8 @@ else:
 
 # The main installation command
 cmd_install() {
-    local skip_docker="$1" skip_firewall="$2"
-
     check_system || return 1
     check_internet || return 1
-    
-    log_info "Updating package lists..."
-    if command_exists apt-get; then sudo apt-get update -qq; fi
-    
-    setup_docker "$skip_docker" || return 1
-    [[ "$skip_firewall" == "false" ]] && { setup_firewall || log_warning "Firewall setup failed"; }
     
     download_files || return 1
     
@@ -984,10 +906,6 @@ COMMANDS:
     restart    Restart all services (creates .env interactively if missing)
     update     Pull the latest images and restart (creates .env interactively if missing)
 
-OPTIONS FOR (install):
-    --no-install        (Optional) Skip Docker installation
-    --no-firewall       (Optional) Skip firewall setup
-
 FEATURES:
     🔐 Automatic Credential Generation: Creates .env file with random secure values
     ✏️  Interactive Editing: Option to edit generated values before deployment
@@ -1000,7 +918,6 @@ GLOBAL OPTIONS:
 
 EXAMPLES:
     bash ${SCRIPT_NAME} install
-    bash ${SCRIPT_NAME} install --no-firewall
     bash ${SCRIPT_NAME} restart
     bash ${SCRIPT_NAME} update
 EOF
@@ -1043,15 +960,9 @@ main() {
         shift
     fi
     
-    # Initialize option variables
-    local skip_docker="false"
-    local skip_firewall="false"
-    
     # Parse all options
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --no-install) skip_docker="true"; shift ;;
-            --no-firewall) skip_firewall="true"; shift ;;
             --debug) export DEBUG=1; shift ;;
             --help|-h) show_help; exit 0 ;;
             --version|-v) show_version; exit 0 ;;
@@ -1069,7 +980,7 @@ main() {
     # Execute the chosen command
     case "$command" in
         install)
-            cmd_install "$skip_docker" "$skip_firewall"
+            cmd_install
             ;;
         restart)
             cmd_restart
