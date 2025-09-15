@@ -6,7 +6,7 @@
 # Features: Complete lifecycle management, user-friendly, enhanced security, comprehensive logging
 # Version: 2.5
 # Author: Natiq dev Team
-# Usage: bash setup.sh [COMMAND] [OPTIONS]
+# Usage: bash install_quran_api.sh [COMMAND] [OPTIONS]
 #
 # Options:
 #   --help         Show this help message
