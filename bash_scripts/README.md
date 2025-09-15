@@ -8,7 +8,7 @@
 
 </div>
 
-> **Production-ready automated setup for NatiqQuran API with comprehensive security and lifecycle management**
+> **Production-ready automated setup for Natiq API with comprehensive security and lifecycle management**
 
 A sophisticated bash script that provides complete installation, configuration, and management of the NatiqQuran API project. Features automatic credential generation, interactive configuration, secure cleanup, and production-ready deployment.
 
@@ -16,6 +16,7 @@ A sophisticated bash script that provides complete installation, configuration, 
 
 - 🔐 **Automatic Credential Generation** - Cryptographically secure random passwords
 - ✏️ **Interactive Configuration** - Edit generated values before deployment  
+- 📦 **Git Installation** - Automatic Git setup for Ubuntu/Debian systems
 - 🐳 **Complete Docker Management** - Installation, updates, and container lifecycle
 - 🗄️ **Database Setup** - PostgreSQL with automatic configuration
 - 🐰 **Message Queue** - RabbitMQ for background tasks
@@ -49,14 +50,28 @@ A sophisticated bash script that provides complete installation, configuration, 
 | **Network** | Internet connection required |
 | **Software** | `curl`, `bash 4.0+`, `sudo` |
 
-### One-Line Installation
+### Complete Setup Process
 
+**Step 1: Server Setup (Git, Docker & Firewall)**
+```bash
+# Setup Git, Docker and firewall
+curl -fsSL https://raw.githubusercontent.com/NatiqQuran/nq-scripts/main/bash_scripts/startup.sh | bash
+```
+
+**Step 2: API Installation**
 ```bash
 # Direct execution (recommended for quick setup)
 curl -fsSL https://raw.githubusercontent.com/NatiqQuran/nq-scripts/main/bash_scripts/install_quran_api.sh | bash
 ```
 
-> After installation completes successfully, proceed to data import using `importer.sh` (see [Post-Install: Import Data](#post-install-import-data)).
+**Step 3: Data Import**
+> After installation completes successfully, proceed to data import using `importer.sh` (see [Post-Install: Import Data](#post-install-import-data).)
+```bash
+# Clone repository and run importer
+git clone https://github.com/natiq-foundation/nq-scripts.git
+cd nq-scripts/bash_scripts
+bash importer.sh
+```
 
 ## 📦 Installation Methods
 
@@ -90,14 +105,17 @@ cd nq-scripts/bash_scripts
 <summary><strong>Method 3: Advanced Options</strong></summary>
 
 ```bash
-# Skip Docker installation
-./install_quran_api.sh --no-install
+# Skip Git installation in startup.sh
+bash startup.sh --skip-git
 
-# Skip firewall setup
-./install_quran_api.sh --no-firewall
+# Skip Docker installation in startup.sh
+bash startup.sh --skip-docker
+
+# Skip firewall setup in startup.sh
+bash startup.sh --skip-firewall
 
 # Enable debug mode
-DEBUG=1 ./install_quran_api.sh --debug
+DEBUG=1 bash install_quran_api.sh --debug
 ```
 </details>
 
@@ -105,40 +123,47 @@ DEBUG=1 ./install_quran_api.sh --debug
 
 ### Core Commands
 
-| Command | Description | Use Case |
-|---------|-------------|----------|
-| `install` (default) | Complete fresh installation | First-time setup |
-| `restart` | Restart all services | After configuration changes |
-| `update` | Pull latest images and restart | Regular updates |
+| Script | Command | Description | Use Case |
+|--------|---------|-------------|----------|
+| `startup.sh` | (default) | Setup Git, Docker and firewall | Server preparation |
+| `install_quran_api.sh` | `install` (default) | Complete API installation | First-time setup |
+| `install_quran_api.sh` | `restart` | Restart all services | After configuration changes |
+| `install_quran_api.sh` | `update` | Pull latest images and restart | Regular updates |
 
 ### Command Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--no-install` | Skip Docker installation | `bash install_quran_api.sh --no-install` |
-| `--no-firewall` | Skip firewall configuration | `bash install_quran_api.sh --no-firewall` |
-| `--debug` | Enable detailed logging | `bash install_quran_api.sh --debug` |
-| `--help` | Show help information | `bash install_quran_api.sh --help` |
-| `--version` | Show script version | `bash install_quran_api.sh --version` |
+| Script | Option | Description | Example |
+|--------|--------|-------------|---------|
+| `startup.sh` | `--skip-git` | Skip Git installation | `bash startup.sh --skip-git` |
+| `startup.sh` | `--skip-docker` | Skip Docker installation | `bash startup.sh --skip-docker` |
+| `startup.sh` | `--skip-firewall` | Skip firewall configuration | `bash startup.sh --skip-firewall` |
+| `install_quran_api.sh` | `--debug` | Enable detailed logging | `bash install_quran_api.sh --debug` |
+| `install_quran_api.sh` | `--help` | Show help information | `bash install_quran_api.sh --help` |
+| `install_quran_api.sh` | `--version` | Show script version | `bash install_quran_api.sh --version` |
 
 ### Installation Workflow
 
 ```mermaid
 graph TD
-    A[Start Installation] --> B[System Check]
-    B --> C[Docker Setup]
-    C --> D[Firewall Config]
-    D --> E[Download Files]
-    E --> F[Generate Credentials]
-    F --> G{Edit Config?}
-    G -->|Yes| H[Interactive Editor]
-    G -->|No| I[Create Production Config]
-    H --> I
-    I --> J[Process Nginx]
-    J --> K[Start Containers]
-    K --> L[Create Superuser]
-    L --> M[Secure Cleanup]
-    M --> N[✅ Complete]
+    A[Start Setup] --> B[Step 1: startup.sh]
+    B --> C[Git Installation]
+    C --> D[Docker Installation]
+    D --> E[Firewall Configuration]
+    E --> F[Step 2: install_quran_api.sh]
+    F --> G[System Check]
+    G --> H[Download Files]
+    H --> I[Generate Credentials]
+    I --> J{Edit Config?}
+    J -->|Yes| K[Interactive Editor]
+    J -->|No| L[Create Production Config]
+    K --> L
+    L --> M[Process Nginx]
+    M --> N[Start Containers]
+    N --> O[Create Superuser]
+    O --> P[Secure Cleanup]
+    P --> Q[Step 3: importer.sh]
+    Q --> R[Import Data]
+    R --> S[✅ Complete]
 ```
 
 ## ⚙️ Configuration
@@ -477,6 +502,31 @@ It will automatically:
 - Import Mushaf and translations into the API
 - Create a Takhtit using the provided Account UUID
 - Import page, hizb, and juz breakers into the Takhtit
+
+## 📋 Complete Setup Checklist
+
+1. **Server Preparation (Git, Docker & Firewall)**
+   ```bash
+   bash startup.sh
+   ```
+
+2. **API Installation**
+   ```bash
+   bash install_quran_api.sh
+   ```
+
+3. **Data Import**
+   ```bash
+   # Clone repository and run importer
+   git clone https://github.com/natiq-foundation/nq-scripts.git
+   cd nq-scripts/bash_scripts
+   bash importer.sh
+   ```
+
+4. **Verify Installation**
+   - Check API endpoint: `http://YOUR_SERVER_IP`
+   - Check admin panel: `http://YOUR_SERVER_IP/admin/`
+   - Check Swagger UI: `http://YOUR_SERVER_IP/api/schema/swagger-ui/`
 
 ## 🤝 Contributing
 
