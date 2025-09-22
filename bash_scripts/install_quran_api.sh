@@ -4,7 +4,7 @@
 # Description: A script to set up and run the NatiqQuran API project using Docker.
 # It handles project folder setup and initial configuration.
 # Features: Complete lifecycle management, user-friendly, enhanced security, comprehensive logging
-# Version: 2.5
+# Version: 2.6
 # Author: Natiq dev Team
 # Usage: bash install_quran_api.sh [COMMAND] [OPTIONS]
 #
@@ -20,7 +20,7 @@ IFS=$'\n\t'
 # ==============================================================================
 
 readonly SCRIPT_NAME="$(basename "$0")"
-readonly SCRIPT_VERSION="2.5"
+readonly SCRIPT_VERSION="2.6"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # --- Project Configuration ---
@@ -873,6 +873,9 @@ cmd_restart() {
 cmd_update() {
     local env_file="$PROJECT_FOLDER/.env"
     local env_was_created=false
+    local source_file="$PROJECT_FOLDER/$SOURCE_FILE"
+    
+    [[ -f "$source_file" ]] || { log_error "Project not found. Run 'install' first."; return 1; }
     
     # Check if .env file exists, create interactively if missing
     if [[ ! -f "$env_file" ]]; then
@@ -880,7 +883,82 @@ cmd_update() {
         env_was_created=true
     fi
     
-    manage_containers "update" "$env_file"
+    [[ -f "$env_file" ]] || { log_error ".env file not found. Run 'install' first."; return 1; }
+    
+    log_info "Stopping all services..."
+    docker compose -f "$source_file" down --remove-orphans 2>/dev/null || log_warning "Some containers may not have stopped cleanly."
+    
+    log_info "Pulling latest images..."
+    docker compose -f "$source_file" pull
+    
+    log_info "Creating new production configuration..."
+    local prod_config; prod_config=$(create_production_config "$env_file")
+    [[ -n "$prod_config" ]] || { log_error "Failed to get production config path"; return 1; }
+    
+    # NEW: Ask user if they want to edit the production configuration
+    echo
+    log_info "Production configuration file created: $prod_config"
+    read -p "Do you want to edit the production docker-compose configuration before deployment? (y/N): " -t "$TIMEOUT" edit_prod || edit_prod="n"
+    
+    if [[ "${edit_prod,,}" =~ ^y ]]; then
+        log_info "Opening production configuration for editing..."
+        for editor in nano vim vi; do
+            if command_exists "$editor"; then
+                log_info "Opening with $editor..."
+                "$editor" "$prod_config"
+                log_success "Production configuration edit completed"
+                break
+            fi
+        done
+    else
+        log_info "Skipping production configuration edit"
+    fi
+    
+    # Process nginx config
+    if [[ -f "$env_file" ]]; then
+        local nginx_max_body; nginx_max_body=$(grep "^NGINX_CLIENT_MAX_BODY_SIZE=" "$env_file" | cut -d'=' -f2)
+        if [[ -n "$nginx_max_body" ]]; then
+            log_info "Processing nginx configuration..."
+            if process_nginx_config "$PROJECT_FOLDER/$NGINX_FILE" "$nginx_max_body"; then
+                log_success "Nginx configuration updated with max body size: $nginx_max_body"
+            else
+                log_warning "Failed to update nginx configuration"
+            fi
+        else
+            log_warning "NGINX_CLIENT_MAX_BODY_SIZE not found in .env file, using default"
+            nginx_max_body="10M"
+            if process_nginx_config "$PROJECT_FOLDER/$NGINX_FILE" "$nginx_max_body"; then
+                log_success "Nginx configuration updated with default max body size: $nginx_max_body"
+            else
+                log_warning "Failed to update nginx configuration with default value"
+            fi
+        fi
+    else
+        log_warning ".env file not found, skipping nginx configuration update"
+    fi
+    
+    # NEW: Ask user if they want to edit nginx configuration
+    echo
+    log_info "Nginx configuration processed: $PROJECT_FOLDER/$NGINX_FILE"
+    read -p "Do you want to edit the nginx configuration? (y/N): " -t "$TIMEOUT" edit_nginx || edit_nginx="n"
+    
+    if [[ "${edit_nginx,,}" =~ ^y ]]; then
+        log_info "Opening nginx configuration for editing..."
+        for editor in nano vim vi; do
+            if command_exists "$editor"; then
+                log_info "Opening with $editor..."
+                "$editor" "$PROJECT_FOLDER/$NGINX_FILE"
+                log_success "Nginx configuration edit completed"
+                break
+            fi
+        done
+    else
+        log_info "Skipping nginx configuration edit"
+    fi
+    
+    # Start containers and cleanup
+    start_and_cleanup_containers "$prod_config" "$env_file"
+    env_was_created=true
     log_success "🎉 Services updated successfully!"
     
     # Cleanup .env file if it was created during this operation

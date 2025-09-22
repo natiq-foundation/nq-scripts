@@ -8,6 +8,7 @@ import secrets
 import string
 
 TOKEN_FILE = os.path.expanduser("~/.importer_token")
+TAKHTIT_UUID_FILE = os.path.expanduser("~/.importer_takhtit_uuid")
 
 # Send the file as multipart/form-data
 def send_file_to_api(file_path, api_url, token=None):
@@ -60,6 +61,18 @@ def load_token():
             return f.read().strip()
     return None
 
+def save_takhtit_uuid(uuid):
+    """Save takhtit UUID to file"""
+    with open(TAKHTIT_UUID_FILE, "w") as f:
+        f.write(uuid)
+
+def load_takhtit_uuid():
+    """Load takhtit UUID from file"""
+    if os.path.exists(TAKHTIT_UUID_FILE):
+        with open(TAKHTIT_UUID_FILE, "r") as f:
+            return f.read().strip()
+    return None
+
 def generate_strong_password(length: int = 16) -> str:
     if length < 8:
         length = 8
@@ -75,7 +88,8 @@ def generate_strong_password(length: int = 16) -> str:
     secrets.SystemRandom().shuffle(password_chars)
     return "".join(password_chars)
 
-def register_user(api_url, user_payload=None):
+def create_user(api_url):
+    """Create a new user and return the account UUID"""
     token = load_token()
     if not token:
         print("No token found. Please login first.")
@@ -87,31 +101,35 @@ def register_user(api_url, user_payload=None):
         "Content-Type": "application/json",
     }
 
-    if user_payload is None:
-        generated_username = "uthmantaha"
-        generated_password = generate_strong_password()
-        user_payload = {
-            "username": generated_username,
-            "password": generated_password,
-            "password2": generated_password,
-            "email": "example@gmail.com",
-            "first_name": "Uthman",
-            "last_name": "Taha",
-        }
+    generated_password = generate_strong_password()
+    user_payload = {
+        "username": "uthmantaha",
+        "password": generated_password,
+        "password2": generated_password,
+        "email": "user@example.com",
+        "first_name": "Uthman",
+        "last_name": "Taha",
+    }
 
     try:
-        resp = requests.post(f"{api_url}/auth/register/", headers=headers, json=user_payload)
-        print("Register user response:")
+        resp = requests.post(f"{api_url}/users/", headers=headers, json=user_payload)
+        print("Create user response:")
         print(resp.status_code, resp.text)
-        if resp.status_code not in [200, 201]:
-            print("Failed to register user.")
+        if resp.status_code == 201:
+            user_data = resp.json()
+            account_uuid = user_data.get("uuid")
+            print(f"User created successfully. UUID: {account_uuid}")
+            return account_uuid
+        else:
+            print("Failed to create user.")
             sys.exit(1)
-        return resp.json()
     except requests.exceptions.RequestException as e:
-        print(f"Failed to register user: {e}")
+        print(f"Failed to create user: {e}")
         sys.exit(1)
 
-def create_takhtit(account_uuid, api_url):
+
+def create_takhtit(api_url):
+    """Create a new takhtit with a newly created user"""
     token = load_token()
     if not token:
         print("No token found. Please login first.")
@@ -123,7 +141,8 @@ def create_takhtit(account_uuid, api_url):
         "Content-Type": "application/json",
     }
 
-    _ = register_user(api_url)
+    # First create a new user and get the account UUID
+    account_uuid = create_user(api_url)
 
     try:
         resp = requests.get(f"{api_url}/mushafs/", headers=headers)
@@ -153,7 +172,14 @@ def create_takhtit(account_uuid, api_url):
         print(response.status_code, response.text)
         
         if response.status_code == 201:
-            print("Takhtit created successfully.")
+            takhtit_data = response.json()
+            takhtit_uuid = takhtit_data.get("uuid")
+            if takhtit_uuid:
+                save_takhtit_uuid(takhtit_uuid)
+                print(f"Takhtit created successfully. UUID: {takhtit_uuid}")
+                print(f"Takhtit UUID saved to {TAKHTIT_UUID_FILE}")
+            else:
+                print("Takhtit created but no UUID in response.")
         else:
             print("Failed to create Takhtit.")
             sys.exit(1)
@@ -161,10 +187,16 @@ def create_takhtit(account_uuid, api_url):
         print(f"Failed to create Takhtit: {e}")
         sys.exit(1)
 
-def import_takhtit(file_path, type_name, uuid, api_url):
+def import_takhtit(file_path, type_name, api_url):
     token = load_token()
     if not token:
         print("No token found. Please login first.")
+        sys.exit(1)
+
+    # Load saved takhtit UUID
+    uuid = load_takhtit_uuid()
+    if not uuid:
+        print("No takhtit UUID found. Please create a takhtit first.")
         sys.exit(1)
 
     if not os.path.isfile(file_path):
@@ -204,8 +236,8 @@ def main(args):
         print("  import-mushaf <input_json_file> <api_url>")
         print("  import-translations <translations_dir> <api_url>")
         print("  import-translation <input_json_file> <api_url>")
-        print("  create-takhtit <account_uuid> <api_url>")
-        print("  import-takhtit <json_file> <type> <uuid> <api_url>")
+        print("  create-takhtit <api_url>")
+        print("  import-takhtit <json_file> <type> <api_url>")
         sys.exit(1)
 
     command = args[1]
@@ -335,15 +367,15 @@ def main(args):
             print(f"Failed to send file: {e}")
             sys.exit(1)
     elif command == "create-takhtit":
-        if len(args) != 4:
-            print("Usage: python script.py create-takhtit <account_uuid> <api_url>")
+        if len(args) != 3:
+            print("Usage: python script.py create-takhtit <api_url>")
             sys.exit(1)
-        create_takhtit(args[2], args[3])
+        create_takhtit(args[2])
     elif command == "import-takhtit":
-        if len(args) != 6:
-            print("Usage: python script.py import-takhtit <json_file> <type> <uuid> <api_url>")
+        if len(args) != 5:
+            print("Usage: python script.py import-takhtit <json_file> <type> <api_url>")
             sys.exit(1)
-        import_takhtit(args[2], args[3], args[4], args[5])
+        import_takhtit(args[2], args[3], args[4])
     else:
         print(f"Unknown command: {command}")
         sys.exit(1)

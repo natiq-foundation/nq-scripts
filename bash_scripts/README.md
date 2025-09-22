@@ -61,7 +61,7 @@ curl -fsSL https://raw.githubusercontent.com/NatiqQuran/nq-scripts/main/bash_scr
 **Step 2: API Installation**
 ```bash
 # Direct execution (recommended for quick setup)
-curl -fsSL https://raw.githubusercontent.com/NatiqQuran/nq-scripts/main/bash_scripts/install_quran_api.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/NatiqQuran/nq-scripts/main/bash_scripts/install_quran_api.sh)
 ```
 
 **Step 3: Data Import**
