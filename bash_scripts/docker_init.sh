@@ -2,7 +2,7 @@
 
 # ==============================================================================
 # Docker Compose Initializer & .env Generator
-# Version: V0.1.0-alpha
+# Version: V0.2.0-alpha
 # ==============================================================================
 # This script automates the initial setup for Docker Compose projects.
 # It fetches a docker-compose.yaml file, intelligently scans it for environment
@@ -16,6 +16,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 print_info() {
@@ -32,6 +33,10 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}[✗]${NC} $1"
+}
+
+print_update() {
+    echo -e "${CYAN}[⟳]${NC} $1"
 }
 
 process_file() {
@@ -76,8 +81,9 @@ process_file() {
 
 YAML_INPUT=""
 NGINX_INPUT=""
+UPDATE_MODE=false
 
-while getopts "y:n:h" opt; do
+while getopts "y:n:uh" opt; do
     case $opt in
         y)
             YAML_INPUT="$OPTARG"
@@ -85,14 +91,23 @@ while getopts "y:n:h" opt; do
         n)
             NGINX_INPUT="$OPTARG"
             ;;
+        u)
+            UPDATE_MODE=true
+            ;;
         h)
             echo "Usage:"
-            echo "  $0 -y <yaml_file_or_url> [-n <nginx_file_or_url>]"
+            echo "  $0 [-u] -y <yaml_file_or_url> [-n <nginx_file_or_url>]"
+            echo ""
+            echo "Options:"
+            echo "  -y    Specify docker-compose.yaml file or URL"
+            echo "  -n    Specify nginx.conf file or URL (optional)"
+            echo "  -u    Update mode: Pull latest images when running compose"
+            echo "  -h    Show this help message"
             echo ""
             echo "Examples:"
             echo "  $0 -y docker-compose.yaml -n nginx.conf"
-            echo "  $0 -y https://example.com/compose.yaml"
-            echo "  $0 -y ./compose.yaml -n https://example.com/nginx.conf"
+            echo "  $0 -u -y https://example.com/compose.yaml"
+            echo "  $0 -u -y ./compose.yaml -n https://example.com/nginx.conf"
             echo "  $0  (interactive mode)"
             exit 0
             ;;
@@ -102,6 +117,10 @@ while getopts "y:n:h" opt; do
             ;;
     esac
 done
+
+if [[ "$UPDATE_MODE" == true ]]; then
+    print_update "UPDATE MODE ENABLED - Images will be pulled to latest versions"
+fi
 
 YAML_FILE=""
 IN_DIRECTORY_YAML="docker-compose.yaml"
@@ -153,7 +172,7 @@ if [[ -z "$NGINX_INPUT" ]]; then
         read -rp "$(echo -e ${YELLOW}[?]${NC}) Do you want to specify nginx.conf file? (y/n): " want_nginx
         
         if [[ "$want_nginx" =~ ^[Yy]$ ]]; then
-            read -rp "$(echo -e ${YELLOW}[?]${NC}) Enter download URL or file path for nginx.conf: " NGINX_INPUT
+            read -rep "$(echo -e ${YELLOW}[?]${NC}) Enter download URL or file path for nginx.conf: " NGINX_INPUT
             
             if [[ -n "$NGINX_INPUT" ]]; then
                 NGINX_FILE=$(process_file "$NGINX_INPUT" "nginx.conf" "nginx.conf")
@@ -260,11 +279,20 @@ if [[ "$run_docker" =~ ^[Yy]$ ]]; then
         exit 1
     fi
     
-    print_info "Running docker compose..."
+    if [[ "$UPDATE_MODE" == true ]]; then
+        print_update "Running docker compose with image update (--pull always)..."
+        COMPOSE_CMD="docker compose -f $YAML_FILE --env-file $ENV_FILE up -d --pull always"
+    else
+        print_info "Running docker compose..."
+        COMPOSE_CMD="docker compose -f $YAML_FILE --env-file $ENV_FILE up -d"
+    fi
     
-    if docker compose -f "$YAML_FILE" --env-file "$ENV_FILE" up -d; then
+    if eval "$COMPOSE_CMD"; then
         print_success "Docker Compose executed successfully!"
         echo ""
+        if [[ "$UPDATE_MODE" == true ]]; then
+            print_update "All images have been pulled to latest versions"
+        fi
         print_info "To view logs: docker compose logs -f"
         print_info "To stop services: docker compose down"
     else
@@ -274,8 +302,13 @@ if [[ "$run_docker" =~ ^[Yy]$ ]]; then
 else
     print_warning "Docker Compose execution cancelled"
     echo ""
-    print_info "To run manually, use the following command (CRITICAL: Note the -f flag):"
-    echo "  docker compose -f $YAML_FILE --env-file $ENV_FILE up -d"
+    if [[ "$UPDATE_MODE" == true ]]; then
+        print_info "To run manually with update, use:"
+        echo "  docker compose -f $YAML_FILE --env-file $ENV_FILE up -d --pull always"
+    else
+        print_info "To run manually, use:"
+        echo "  docker compose -f $YAML_FILE --env-file $ENV_FILE up -d"
+    fi
 fi
 
 print_info ""
