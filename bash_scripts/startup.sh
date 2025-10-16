@@ -214,7 +214,6 @@ main() {
     [[ "$skip_firewall" == "false" ]] && { setup_firewall || log_warning "Firewall setup failed"; }
     
     log_success "Launch setup completed successfully!"
-    log_info "You can now run the main installer: bash install_quran_api.sh"
 }
 
 main "$@"
