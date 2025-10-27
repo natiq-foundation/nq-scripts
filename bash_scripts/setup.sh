@@ -112,7 +112,6 @@ check_dependencies() {
     log_info "Checking required dependencies..."
     check_command_exists "curl"
     check_command_exists "bash"
-    check_command_exists "git"
     log_success "All dependencies are available"
 }
 

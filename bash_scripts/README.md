@@ -1,576 +1,756 @@
-# NatiqQuran API Setup Script
+# NatiqQuran API - Bash Scripts Documentation
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/version-2.5-blue.svg)](https://github.com/NatiqQuran/nq-scripts/blob/main/bash_scripts/install_quran_api.sh)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Shell](https://img.shields.io/badge/shell-Bash-4EAA25.svg)](https://www.gnu.org/software/bash/)
+[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://www.linux.org/)
 
 </div>
 
-> **Production-ready automated setup for Natiq API with comprehensive security and lifecycle management**
+---
 
-A sophisticated bash script that provides complete installation, configuration, and management of the NatiqQuran API project. Features automatic credential generation, interactive configuration, secure cleanup, and production-ready deployment.
+> **Complete automated deployment system for NatiqQuran API**  
+> A production-ready orchestration suite providing end-to-end setup from bare server to running API with imported data.
 
-## ✨ Key Features
+---
 
-- 🔐 **Automatic Credential Generation** - Cryptographically secure random passwords
-- ✏️ **Interactive Configuration** - Edit generated values before deployment  
-- 📦 **Git Installation** - Automatic Git setup for Ubuntu/Debian systems
-- 🐳 **Complete Docker Management** - Installation, updates, and container lifecycle
-- 🗄️ **Database Setup** - PostgreSQL with automatic configuration
-- 🐰 **Message Queue** - RabbitMQ for background tasks
-- 🌐 **Reverse Proxy** - Nginx with customizable settings
-- 👤 **Django Superuser** - Automatic admin account creation
-- 🔥 **Firewall Security** - UFW automatic configuration
-- 🧹 **Secure Cleanup** - Automatic removal of sensitive files
-- ☁️ **Cloud Ready** - AWS S3 integration built-in
+## 📑 Table of Contents
 
-## 📋 Table of Contents
-
+- [Overview](#-overview)
+- [Architecture](#-architecture)
 - [Quick Start](#-quick-start)
-- [Installation Methods](#-installation-methods)
-- [Usage & Commands](#-usage--commands)
-- [Configuration](#%EF%B8%8F-configuration)
-- [Commands](#-commands)
-- [Security Features](#-security-features)
-- [Management](#%EF%B8%8F-management)
+- [Detailed Documentation](#-detailed-documentation)
+  - [Setup Script (setup.sh)](#1-setup-script-setupsh)
+  - [Startup Script (startup.sh)](#2-startup-script-startupsh)
+  - [Docker Init Script (docker_init.sh)](#3-docker-init-script-docker_initsh)
+  - [Importer Script (importer.sh)](#4-importer-script-importersh)
+- [Workflow](#-workflow)
+- [Advanced Usage](#-advanced-usage)
 - [Troubleshooting](#-troubleshooting)
-- [Contributing](#-contributing)
+- [Security Considerations](#-security-considerations)
+
+---
+
+## 🎯 Overview
+
+This suite provides **four main scripts** that work together to automate the complete NatiqQuran API deployment:
+
+| Script | Purpose | Status |
+|--------|---------|--------|
+| `setup.sh` | **Orchestrator** - Coordinates all scripts | ✅ Production Ready |
+| `startup.sh` | **Server Setup** - Installs Git, Docker, Firewall | ✅ Production Ready |
+| `docker_init.sh` | **Docker Setup** - Initializes Compose & .env | ✅ Production Ready |
+| `importer.sh` | **Data Import** - Imports Quran data to API | ✅ Production Ready |
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    COMPLETE DEPLOYMENT FLOW                   │
+└─────────────────────────────────────────────────────────────┘
+
+[setup.sh]
+    │
+    ├─► [startup.sh]
+    │       ├─► Install Git
+    │       ├─► Install Docker (v20.10+)
+    │       └─► Configure UFW Firewall
+    │
+    ├─► [docker_init.sh]
+    │       ├─► Fetch docker-compose.yaml
+    │       ├─► Extract environment variables
+    │       ├─► Generate .env file
+    │       └─► Start Docker Compose
+    │
+    └─► [importer.sh]
+            ├─► Create Python venv
+            ├─► Process XML data → JSON
+            ├─► Import Mushaf & Translations
+            └─► Import Takhtit (Pages, Hizb, Juz)
+
+```
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-| Component | Requirement |
-|-----------|-------------|
-| **OS** | Linux (Ubuntu 18.04+, Debian 9+) |
-| **RAM** | 4GB minimum |
-| **Storage** | 10GB minimum free space |
-| **Network** | Internet connection required |
-| **Software** | `curl`, `bash 4.0+`, `sudo` |
+| Component | Requirement | Check Command |
+|-----------|-------------|---------------|
+| **OS** | Ubuntu 18.04+ / Debian 9+ | `cat /etc/os-release` |
+| **RAM** | 4GB minimum | `free -h` |
+| **Storage** | 10GB free | `df -h` |
+| **Network** | Internet connection | `curl -I google.com` |
+| **Tools** | `curl`, `bash 4.0+`, `sudo` | `which curl bash` |
 
-### Complete Setup Process
+### One-Command Setup
 
-**Step 1: Server Setup (Git, Docker & Firewall)**
 ```bash
-# Setup Git, Docker and firewall
-curl -fsSL https://raw.githubusercontent.com/NatiqQuran/nq-scripts/main/bash_scripts/startup.sh | bash
+# Download and execute the complete setup
+curl -fsSL https://raw.githubusercontent.com/natiq-foundation/nq-scripts/main/bash_scripts/setup.sh | bash
 ```
 
-**Step 2: API Installation**
+This single command will:
+1. ✅ Install Git, Docker, and configure firewall
+2. ✅ Download and setup Docker Compose
+3. ✅ Generate environment files
+4. ✅ Start the API containers
+5. ✅ Process and import Quran data
+
+---
+
+## 📖 Detailed Documentation
+
+### 1. Setup Script (`setup.sh`)
+
+**Role**: Master orchestrator that coordinates all scripts in sequence
+
+#### Features
+
+- ✅ **Full Setup Mode**: Complete deployment from scratch
+- ✅ **Update Mode**: Update existing Docker environment
+- ✅ **Remote Script Execution**: Downloads and executes scripts from GitHub
+- ✅ **Validation**: Basic script validation before execution
+- ✅ **Root Warning**: Warns if not running as root
+- ✅ **Comprehensive Error Handling**: Graceful failure with cleanup
+
+#### Usage
+
 ```bash
-# Direct execution (recommended for quick setup)
-bash <(curl -fsSL https://raw.githubusercontent.com/NatiqQuran/nq-scripts/main/bash_scripts/install_quran_api.sh)
+# Full setup (runs all three scripts in sequence)
+bash setup.sh
+
+# Full setup with custom options
+bash setup.sh --startup-skip-firewall --docker-force
+
+# Update existing installation
+bash setup.sh -u /path/to/quran-api
+
+# Show help
+bash setup.sh -h
 ```
 
-**Step 3: Data Import**
-> After installation completes successfully, proceed to data import using `importer.sh` (see [Post-Install: Import Data](#post-install-import-data).)
+#### Command Line Options
+
+| Option | Description |
+|--------|-------------|
+| `-u, --update DIR` | Run in update mode for specified directory |
+| `--startup-skip-git` | Skip Git installation in startup.sh |
+| `--startup-skip-docker` | Skip Docker installation in startup.sh |
+| `--startup-skip-firewall` | Skip firewall setup in startup.sh |
+| `--startup-debug` | Enable debug mode |
+| `--docker-update` | Force update mode in docker-init |
+| `--docker-force` | Non-interactive mode (CI/CD) |
+| `-h, --help` | Show help message |
+| `-v, --version` | Show version information |
+
+#### Execution Flow
+
+```
+┌─────────────────┐
+│  setup.sh       │
+└────────┬────────┘
+         │
+         ├─► Check dependencies (curl, bash)
+         │
+         ├─► [Full Setup Mode]
+         │       ├─► Execute startup.sh
+         │       │       └─► Install Git, Docker, UFW
+         │       │
+         │       ├─► Execute docker_init.sh
+         │       │       ├─► Fetch compose file
+         │       │       ├─► Generate .env
+         │       │       └─► Start containers
+         │       │
+         │       └─► Execute importer.sh
+         │               ├─► Setup Python venv
+         │               ├─► Process data
+         │               └─► Import to API
+         │
+         └─► [Update Mode]
+                 └─► Execute docker_init.sh in update mode
+```
+
+#### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | General error |
+| 127 | Missing dependency |
+
+---
+
+### 2. Startup Script (`startup.sh`)
+
+**Role**: Server preparation - Installs essential tools
+
+#### Features
+
+- ✅ **Git Installation**: Automatic for Ubuntu/Debian
+- ✅ **Docker Installation**: Official Docker installation script
+- ✅ **Docker Version Check**: Ensures minimum v20.10.0
+- ✅ **Firewall Setup**: UFW configuration (SSH, HTTP, HTTPS)
+- ✅ **Root Detection**: Warns if running as root
+- ✅ **Skip Options**: Can skip individual components
+
+#### Usage
+
 ```bash
-# Clone repository and run importer
-git clone https://github.com/natiq-foundation/nq-scripts.git
-cd nq-scripts/bash_scripts
+# Full setup (Git + Docker + Firewall)
+bash startup.sh
+
+# Skip firewall configuration
+bash startup.sh --skip-firewall
+
+# Skip everything except Docker
+bash startup.sh --skip-git --skip-firewall
+
+# Debug mode
+DEBUG=1 bash startup.sh --debug
+```
+
+#### Command Line Options
+
+| Option | Description |
+|--------|-------------|
+| `--skip-git` | Skip Git installation |
+| `--skip-docker` | Skip Docker installation |
+| `--skip-firewall` | Skip UFW firewall setup |
+| `--debug` | Enable debug mode |
+| `-h, --help` | Show help |
+| `-v, --version` | Show version |
+
+#### Docker Version Requirements
+
+- **Minimum**: Docker 20.10.0
+- **Check**: Script verifies version before proceeding
+- **Installation**: Uses official `get.docker.com` script
+
+#### Firewall Rules
+
+The script configures UFW with these rules:
+
+```bash
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow ssh        # SSH access
+ufw allow 80/tcp     # HTTP
+ufw allow 443/tcp    # HTTPS
+```
+
+**Warning**: Existing UFW rules will be **reset** by this script.
+
+#### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Error |
+
+---
+
+### 3. Docker Init Script (`docker_init.sh`)
+
+**Role**: Docker Compose initialization and .env generation
+
+#### Features
+
+- ✅ **Smart Variable Extraction**: Parses docker-compose.yaml for variables
+- ✅ **Secure Download**: HTTPS with TLS 1.2, retry logic
+- ✅ **YAML Validation**: Syntax checking with yamllint/Python
+- ✅ **Interactive Editor**: Opens .env for editing
+- ✅ **Compose Detection**: Supports both v1 and v2
+- ✅ **Non-Interactive Mode**: CI/CD compatible
+- ✅ **Temp File Management**: Automatic cleanup on exit
+
+#### Usage
+
+```bash
+# Basic usage (download compose from URL)
+bash docker_init.sh -y https://example.com/docker-compose.yaml
+
+# With nginx config
+bash docker_init.sh -y compose.yaml -n nginx.conf
+
+# Force update mode
+bash docker_init.sh -u -y compose.yaml
+
+# Non-interactive (CI/CD)
+bash docker_init.sh -f -y compose.yaml
+
+# Custom .env filename
+bash docker_init.sh -y compose.yaml -e .env.prod
+```
+
+#### Command Line Options
+
+| Option | Description | Required |
+|--------|-------------|----------|
+| `-y <file\|url>` | Docker Compose file/URL | ✅ Yes |
+| `-n <file\|url>` | Nginx config (optional) | ❌ No |
+| `-e <filename>` | Output .env filename | ❌ No (default: .env) |
+| `-u` | Pull latest images | ❌ No |
+| `-f` | Force yes (non-interactive) | ❌ No |
+| `-l <logfile>` | Write logs to file | ❌ No |
+| `-h` | Show help | ❌ No |
+
+#### Variable Extraction
+
+The script intelligently extracts these patterns from docker-compose.yaml:
+
+```yaml
+# Examples that get extracted:
+environment:
+  - POSTGRES_USER=${DB_USER:-admin}        # → DB_USER=admin
+  - POSTGRES_PASS=${DB_PASS}                # → # REQUIRED: DB_PASS=
+  - API_KEY=${API_KEY:=default123}          # → API_KEY=default123
+  - ERROR_MSG=${VAR?Missing variable}      # → # REQUIRED: VAR= # Error message
+```
+
+#### Generated .env Format
+
+```bash
+# Environment variables for docker-compose
+# Generated by docker-compose-init v2.0.0
+# Date: 2024-01-15 10:30:00 UTC
+# Source: docker-compose.yaml
+
+# Variables with defaults
+DB_USER=admin
+DB_PASS=secretpass123
+
+# Required variables (must be filled)
+# REQUIRED: API_KEY=
+# REQUIRED: SECRET_KEY=
+```
+
+#### Execution Flow
+
+```
+┌──────────────────────┐
+│  docker_init.sh      │
+└──────────┬───────────┘
+           │
+           ├─► Parse arguments
+           ├─► Check dependencies
+           │
+           ├─► Retrieve docker-compose.yaml
+           │       └─► Validate YAML syntax
+           │
+           ├─► Retrieve nginx.conf (if provided)
+           │
+           ├─► Generate .env file
+           │       ├─► Extract variables
+           │       ├─► Open in editor (optional)
+           │       └─► Validate entries
+           │
+           └─► Start Docker Compose
+                   ├─► Detect compose command (v1/v2)
+                   ├─► Pull images (if -u flag)
+                   └─► Start containers
+```
+
+#### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | General error |
+| 64 | Invalid input |
+| 65 | File not found |
+| 69 | Download failed |
+| 70 | Docker not available |
+| 71 | Validation failed |
+| 127 | Missing dependencies |
+| 130 | Interrupted by user |
+
+---
+
+### 4. Importer Script (`importer.sh`)
+
+**Role**: Data processing and API import
+
+#### Features
+
+- ✅ **Auto Python Setup**: Installs python3-venv if missing
+- ✅ **Virtual Environment**: Automatic venv creation
+- ✅ **Data Processing**: Converts XML to JSON
+- ✅ **Secure Login**: Password input with `-s` flag
+- ✅ **Comprehensive Import**: Mushaf, translations, takhtit
+- ✅ **Error Handling**: Step-by-step validation
+
+#### Usage
+
+```bash
+# Standard execution
 bash importer.sh
 ```
 
-## 📦 Installation Methods
+**Note**: This script requires user interaction for server credentials.
 
-<details>
-<summary><strong>Method 1: Direct Download & Execute</strong></summary>
+#### Data Sources
 
-```bash
-# Download and save locally
-curl -fsSL https://raw.githubusercontent.com/NatiqQuran/nq-scripts/main/bash_scripts/install_quran_api.sh -o install_quran_api.sh
+The script processes these files:
 
-# Make executable and run
-chmod +x install_quran_api.sh
-./install_quran_api.sh
-```
-</details>
+| File | Source Path | Type |
+|------|-------------|------|
+| Page data | `parser/data/breakers/ayah_breakers/page.json` | JSON |
+| Hizb data | `parser/data/breakers/ayah_breakers/hizb.json` | JSON |
+| Juz data | `parser/data/breakers/ayah_breakers/juz.json` | JSON |
+| Quran XML | `parser/data/quran/quran-uthmani.xml` | XML |
+| Translations | `parser/data/translations/tanzil/` | XML |
 
-<details>
-<summary><strong>Method 2: Git Clone</strong></summary>
+#### User Inputs
 
-```bash
-# Clone the repository
-git clone https://github.com/NatiqQuran/nq-scripts.git
-cd nq-scripts/bash_scripts
-
-# Run installation
-./install_quran_api.sh
-```
-</details>
-
-<details>
-<summary><strong>Method 3: Advanced Options</strong></summary>
+During execution, the script will prompt for:
 
 ```bash
-# Skip Git installation in startup.sh
-bash startup.sh --skip-git
-
-# Skip Docker installation in startup.sh
-bash startup.sh --skip-docker
-
-# Skip firewall setup in startup.sh
-bash startup.sh --skip-firewall
-
-# Enable debug mode
-DEBUG=1 bash install_quran_api.sh --debug
-```
-</details>
-
-## 🎯 Usage & Commands
-
-### Core Commands
-
-| Script | Command | Description | Use Case |
-|--------|---------|-------------|----------|
-| `startup.sh` | (default) | Setup Git, Docker and firewall | Server preparation |
-| `install_quran_api.sh` | `install` (default) | Complete API installation | First-time setup |
-| `install_quran_api.sh` | `restart` | Restart all services | After configuration changes |
-| `install_quran_api.sh` | `update` | Pull latest images and restart | Regular updates |
-
-### Command Options
-
-| Script | Option | Description | Example |
-|--------|--------|-------------|---------|
-| `startup.sh` | `--skip-git` | Skip Git installation | `bash startup.sh --skip-git` |
-| `startup.sh` | `--skip-docker` | Skip Docker installation | `bash startup.sh --skip-docker` |
-| `startup.sh` | `--skip-firewall` | Skip firewall configuration | `bash startup.sh --skip-firewall` |
-| `install_quran_api.sh` | `--debug` | Enable detailed logging | `bash install_quran_api.sh --debug` |
-| `install_quran_api.sh` | `--help` | Show help information | `bash install_quran_api.sh --help` |
-| `install_quran_api.sh` | `--version` | Show script version | `bash install_quran_api.sh --version` |
-
-### Installation Workflow
-
-```mermaid
-graph TD
-    A[Start Setup] --> B[Step 1: startup.sh]
-    B --> C[Git Installation]
-    C --> D[Docker Installation]
-    D --> E[Firewall Configuration]
-    E --> F[Step 2: install_quran_api.sh]
-    F --> G[System Check]
-    G --> H[Download Files]
-    H --> I[Generate Credentials]
-    I --> J{Edit Config?}
-    J -->|Yes| K[Interactive Editor]
-    J -->|No| L[Create Production Config]
-    K --> L
-    L --> M[Process Nginx]
-    M --> N[Start Containers]
-    N --> O[Create Superuser]
-    O --> P[Secure Cleanup]
-    P --> Q[Step 3: importer.sh]
-    Q --> R[Import Data]
-    R --> S[✅ Complete]
+Server IP (e.g. http://localhost:8000): http://localhost:8000
+Username: admin
+Password: [hidden]
 ```
 
-## ⚙️ Configuration
+#### Execution Flow
 
-### Automatic Environment Generation
-
-The script creates a `.env` file with secure, randomly generated values:
-
-#### Database Configuration
-```bash
-POSTGRES_USER=user_<8_random_chars>
-POSTGRES_PASSWORD=<20_random_chars>
-DATABASE_USERNAME=user_<8_random_chars>  # Same as POSTGRES_USER
-DATABASE_PASSWORD=<20_random_chars>      # Same as POSTGRES_PASSWORD
+```
+┌──────────────────┐
+│  importer.sh     │
+└────────┬─────────┘
+         │
+         ├─► Check Python 3
+         ├─► Install python3-venv (if needed)
+         │
+         ├─► Create .venv/
+         ├─► Activate virtual environment
+         ├─► Install requirements.txt
+         │
+         ├─► cd parser/
+         │   ├─► Generate hafs.json (Quran text)
+         │   └─► Generate bulk translations
+         │
+         ├─► cd importer/
+         │   ├─► Prompt for server credentials
+         │   ├─► Login to API
+         │   ├─► Import mushaf
+         │   ├─► Import translations
+         │   ├─► Create takhtit
+         │   ├─► Import pages
+         │   ├─► Import hizb
+         │   └─► Import juz
+         │
+         └─► Cleanup
 ```
 
-#### Message Queue & Celery
-```bash
-RABBIT_USER=rabbit_<8_random_chars>
-RABBITMQ_PASS=<20_random_chars>
-CELERY_BROKER_URL=amqp://<user>:<pass>@rabbitmq:5672//
+#### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Error |
+
+---
+
+## 🔄 Workflow
+
+### Complete Deployment Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PHASE 1: SERVER PREPARATION                    │
+└─────────────────────────────────────────────────────────────────┘
+
+User runs: bash setup.sh
+
+┌──────────────────┐
+│  startup.sh      │
+│                  │
+│  ✓ Check system  │
+│  ✓ Install Git   │
+│  ✓ Install Docker│
+│  ✓ Setup UFW     │
+└──────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                  PHASE 2: DOCKER ENVIRONMENT                      │
+└─────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────┐
+│  docker_init.sh      │
+│                      │
+│  ✓ Fetch compose     │
+│  ✓ Extract vars      │
+│  ✓ Generate .env     │
+│  ✓ Start containers  │
+└──────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                      PHASE 3: DATA IMPORT                         │
+└─────────────────────────────────────────────────────────────────┘
+
+┌──────────────────┐
+│  importer.sh     │
+│                  │
+│  ✓ Setup Python  │
+│  ✓ Process data  │
+│  ✓ Import to API │
+└──────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                         DEPLOYMENT COMPLETE                       │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-#### Django Settings
-```bash
-SECRET_KEY=<50_random_chars>
-DJANGO_ALLOWED_HOSTS=<auto_detected_public_ip>
-DEBUG=0
-FORCED_ALIGNMENT_SECRET_KEY=<50_random_chars>
-```
+---
 
-#### Cloud Storage (AWS S3)
-```bash
-AWS_ACCESS_KEY_ID=example123              # Edit as needed
-AWS_SECRET_ACCESS_KEY=secretExample       # Edit as needed  
-AWS_S3_ENDPOINT_URL=https://example.com   # Edit as needed
-```
+## 🔧 Advanced Usage
 
-#### Nginx & Superuser
-```bash
-NGINX_CLIENT_MAX_BODY_SIZE=10M
-DJANGO_SUPERUSER_USERNAME=admin_<8_random_chars>
-DJANGO_SUPERUSER_PASSWORD=<20_random_chars>
-DJANGO_SUPERUSER_EMAIL=example@gmail.com  # Edit as needed
-```
-
-### Interactive Configuration
-
-During installation, you can:
-1. **View generated values** in the `.env` file
-2. **Edit any settings** using your preferred editor (nano/vim/vi)
-3. **Customize AWS credentials** for your S3 storage
-4. **Modify Nginx settings** for your needs
-
-## 📚 Commands
-
-### `install` (Default)
-Performs a complete installation and setup:
+### Custom Docker Compose Sources
 
 ```bash
-bash install_natiq_api.sh [OPTIONS]
+# From local file
+bash docker_init.sh -y ./docker-compose.yaml
+
+# From URL
+bash docker_init.sh -y https://raw.githubusercontent.com/org/repo/main/compose.yaml
+
+# With nginx config
+bash docker_init.sh -y compose.yaml -n https://example.com/nginx.conf
 ```
 
-**Options:**
-- `--no-install`: Skip Docker installation
-- `--no-firewall`: Skip firewall setup
-
-**Process:**
-1. System requirements check
-2. Docker installation (if needed)
-3. Firewall configuration
-4. Download configuration files
-5. Generate `.env` file with random credentials
-6. Interactive editing (optional)
-7. Create production configuration
-8. Process Nginx configuration
-9. Start Docker containers
-10. Wait for services to be ready
-11. Create Django superuser
-12. Secure cleanup of `.env` file
-
-### `restart`
-Restarts all services:
+### CI/CD Integration
 
 ```bash
-bash install_natiq_api.sh restart
+# Non-interactive setup script
+bash setup.sh \
+  --startup-skip-git \
+  --startup-skip-firewall \
+  --docker-force
+
+# Non-interactive docker init
+bash docker_init.sh -f -y compose.yaml -u
 ```
 
-**Process:**
-1. Check for existing `.env` file
-2. Create `.env` interactively if missing
-3. Stop all services
-4. Create new production configuration
-5. Process Nginx configuration
-6. Start containers
-7. Cleanup `.env` file (if created during operation)
-
-### `update`
-Updates to the latest images and restarts:
+### Logging to File
 
 ```bash
-bash install_natiq_api.sh update
+# Log all output to file
+bash docker_init.sh -l /var/log/docker-init.log -y compose.yaml
 ```
 
-**Process:**
-1. Check for existing `.env` file
-2. Create `.env` interactively if missing
-3. Stop all services
-4. Pull latest Docker images
-5. Create new production configuration
-6. Process Nginx configuration
-7. Start containers
-8. Cleanup `.env` file (if created during operation)
-
-
-## 🔒 Security Features
-
-### Credential Generation
-- **Algorithm**: Uses OpenSSL rand with fallback to /dev/urandom and SHA256
-- **Strength**: 20-character passwords, 50-character secret keys
-- **Randomness**: Cryptographically secure random generation
-
-### File Security
-- **Permissions**: 600 (owner read/write only) for sensitive files
-- **Secure Deletion**: Uses `shred` command with 3-pass overwrite
-- **Automatic Cleanup**: Removes `.env` and temporary files after use
-- **No Logging**: Passwords never appear in system logs
-
-### Network Security
-- **UFW Firewall**: Configured with secure defaults
-- **Port Management**: Only HTTP (80), HTTPS (443), and SSH (22) opened
-- **SSL/TLS Ready**: Nginx configured for HTTPS deployment
-
-### Security Best Practices
-
-> ⚠️ **Production Security Checklist**:
-> - [ ] Change default AWS credentials
-> - [ ] Update superuser email address  
-> - [ ] Enable HTTPS with valid SSL certificates
-> - [ ] Use strong, unique passwords
-> - [ ] Regularly update Docker images
-> - [ ] Monitor access logs
-
-## 📁 Project Structure
-
-After successful installation:
-
-```
-quran-api/
-├── docker-compose.source.yaml    # Main Docker Compose configuration
-├── nginx.conf                    # Nginx reverse proxy settings
-└── logs/                         # Container logs (auto-created)
-```
-
-**Temporary Files** (auto-removed):
-- `.env` - Environment variables (🔒 securely deleted)
-- `docker-compose.prod.yaml` - Production config
-
-## 🌐 Access Information
-
-After successful installation:
-
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| **API Endpoint** | `http://YOUR_SERVER_IP` | Public access |
-| **Swagger UI** | `http://YOUR_SERVER_IP/api/schema/swagger-ui/` | Public access |
-| **Admin Panel** | `http://YOUR_SERVER_IP/admin/` | Auto-generated (shown during install) |
-
-> 💡 **Tip**: Credentials are displayed once during installation. Save them securely!
-
-## 🛠️ Management
-
-### Service Management
+### Update Existing Installation
 
 ```bash
-# View real-time logs
-docker compose -f quran-api/docker-compose.source.yaml logs -f
-
-# Check container status  
-docker compose -f quran-api/docker-compose.source.yaml ps
-
-# Stop all services
-docker compose -f quran-api/docker-compose.source.yaml down
-
-# Restart services (preserves data)
-bash install_quran_api.sh restart
-
-# Update to latest version
-bash install_quran_api.sh update
+# Update Docker environment only
+bash setup.sh -u /home/user/quran-api
 ```
 
-### Health Checks
-
-```bash
-# Database connectivity
-docker compose -f quran-api/docker-compose.source.yaml exec postgres-db pg_isready -U postgres
-
-# API health check
-curl http://YOUR_SERVER_IP/health/
-
-# Container resource usage
-docker stats
-```
+---
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-<details>
-<summary><strong>🔴 Docker Installation Fails</strong></summary>
+#### Issue: "Docker not found"
 
-**Symptoms**: Script fails during Docker setup
+**Cause**: Docker daemon not running or user not in docker group
 
-**Solutions**:
+**Solution**:
 ```bash
-# Check system compatibility
-uname -a && cat /etc/os-release
+# Check Docker status
+sudo systemctl status docker
 
-# Manual Docker installation
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
+# Start Docker
+sudo systemctl start docker
 
-# Skip Docker install in script
-./install_quran_api.sh --no-install
-```
-</details>
-
-<details>
-<summary><strong>🔴 Permission Denied Errors</strong></summary>
-
-**Symptoms**: Docker commands fail with permission errors
-
-**Solutions**:
-```bash
-# Add user to docker group
+# Add user to docker group (then logout/login)
 sudo usermod -aG docker $USER
-
-# Refresh group membership (logout/login required)
-newgrp docker
-
-# Test Docker access
-docker run hello-world
 ```
-</details>
 
-<details>
-<summary><strong>🔴 Containers Won't Start</strong></summary>
+#### Issue: "python3-venv not available"
 
-**Symptoms**: Services fail to start or crash immediately
+**Cause**: python3-venv package not installed
 
-**Solutions**:
+**Solution**:
 ```bash
-# Check available resources
-df -h && free -h
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install python3.11-venv python3-venv
 
-# Check port conflicts
-netstat -tuln | grep -E ':80|:443|:5432'
-
-# View detailed container logs
-docker compose -f quran-api/docker-compose.source.yaml logs
-
-# Check Docker daemon
-systemctl status docker
+# Or let importer.sh install it automatically
 ```
-</details>
 
-<details>
-<summary><strong>🔴 Cannot Access Admin Panel</strong></summary>
+#### Issue: "Download failed"
 
-**Symptoms**: Admin panel returns 404 or connection refused
+**Cause**: Network issues or invalid URL
 
-**Solutions**:
+**Solution**:
 ```bash
-# Check firewall status
+# Check network connectivity
+curl -I https://raw.githubusercontent.com/
+
+# Verify URL is accessible
+curl -f https://your-compose-url.yaml
+
+# Check firewall
 sudo ufw status
-
-# Verify containers are running
-docker compose -f quran-api/docker-compose.source.yaml ps
-
-# Check Django container logs
-docker compose -f quran-api/docker-compose.source.yaml logs natiq-api
-
-# Test local connectivity
-curl http://localhost/admin/
 ```
-</details>
 
-<details>
-<summary><strong>🔴 Database Connection Issues</strong></summary>
+#### Issue: "YAML validation failed"
 
-**Symptoms**: API returns database connection errors
+**Cause**: Invalid docker-compose.yaml syntax
 
-**Solutions**:
+**Solution**:
 ```bash
-# Check PostgreSQL container
-docker compose -f quran-api/docker-compose.source.yaml exec postgres-db pg_isready
+# Validate YAML manually
+yamllint docker-compose.yaml
 
-# View database logs
-docker compose -f quran-api/docker-compose.source.yaml logs postgres-db
-
-# Restart database only
-docker compose -f quran-api/docker-compose.source.yaml restart postgres-db
+# Or with Python
+python3 -c "import yaml; yaml.safe_load(open('docker-compose.yaml'))"
 ```
-</details>
+
+#### Issue: "Login failed" (importer.sh)
+
+**Cause**: Wrong credentials or API not accessible
+
+**Solution**:
+```bash
+# Verify API is running
+curl http://localhost:8000/health
+
+# Check credentials
+python3 -c "
+import requests
+r = requests.post('http://localhost:8000/api/auth/login', 
+                  json={'username': 'admin', 'password': 'password'})
+print(r.status_code)
+"
+```
 
 ### Debug Mode
 
-Enable comprehensive logging for troubleshooting:
+Enable debug output:
 
 ```bash
-# Full debug installation
-DEBUG=1 ./install_quran_api.sh --debug
+# For startup.sh
+DEBUG=1 bash startup.sh --debug
 
-# Debug restart
-DEBUG=1 ./install_quran_api.sh restart
+# For setup.sh (if available)
+bash setup.sh --startup-debug
 ```
-## Post-Install: Import Data
 
-After the API is installed and running, use the importer script to load Mushaf, translations, create a Takhtit, and import breakers:
+### Manual Cleanup
+
+If scripts fail mid-execution:
 
 ```bash
-# First clone repository and run importer
-git clone https://github.com/natiq-foundation/nq-scripts.git
-cd nq-scripts/bash_scripts
-bash importer.sh
+# Clean up Docker resources
+docker compose down -v
+
+# Remove virtual environment
+rm -rf .venv
+
+# Remove generated files
+rm -f docker-compose.yaml .env nginx.conf
+
+# Remove temp files
+rm -f /tmp/*.sh
 ```
 
-The script will prompt you for:
-- API server URL (e.g., `http://localhost:8000`)
-- Username and password for login
-- Account UUID of the Takhtit creator (not the superuser)
-- Takhtit UUID (for subsequent breaker imports)
+---
 
-It will automatically:
-- Generate Mushaf and translations via the parser
-- Import Mushaf and translations into the API
-- Create a Takhtit using the provided Account UUID
-- Import page, hizb, and juz breakers into the Takhtit
+## 🔐 Security Considerations
 
-## 📋 Complete Setup Checklist
+### File Permissions
 
-1. **Server Preparation (Git, Docker & Firewall)**
-   ```bash
-   bash startup.sh
-   ```
+The scripts automatically set secure permissions on sensitive files:
 
-2. **API Installation**
-   ```bash
-   bash install_quran_api.sh
-   ```
+```bash
+# .env file permissions (600 = owner read/write only)
+chmod 600 .env
+```
 
-3. **Data Import**
-   ```bash
-   # Clone repository and run importer
-   git clone https://github.com/natiq-foundation/nq-scripts.git
-   cd nq-scripts/bash_scripts
-   bash importer.sh
-   ```
+### Password Handling
 
-4. **Verify Installation**
-   - Check API endpoint: `http://YOUR_SERVER_IP`
-   - Check admin panel: `http://YOUR_SERVER_IP/admin/`
-   - Check Swagger UI: `http://YOUR_SERVER_IP/api/schema/swagger-ui/`
+**Security Warning**: Passwords entered in `importer.sh` are temporarily stored in shell variables.
+
+**Best Practices**:
+- Use environment variables when possible
+- Clear shell history after use: `history -c`
+- Use `unset PASSWORD` after script completion
+
+### Firewall Rules
+
+The `startup.sh` script configures UFW with restrictive rules:
+
+```bash
+# Only these ports are open:
+- 22/tcp  (SSH)
+- 80/tcp  (HTTP)
+- 443/tcp (HTTPS)
+```
+
+**Custom Ports**: If you need additional ports, configure manually:
+
+```bash
+sudo ufw allow 8000/tcp  # Example: Django dev server
+```
+
+### HTTPS vs HTTP
+
+The `docker_init.sh` script warns about non-HTTPS URLs:
+
+```bash
+# HTTPS is preferred
+bash docker_init.sh -y https://secure.example.com/compose.yaml
+
+# HTTP will prompt for confirmation
+bash docker_init.sh -y http://example.com/compose.yaml
+```
+
+---
+
+## 📝 Additional Resources
+
+- [Docker Compose Documentation](https://docs.docker.com/compose/)
+- [UFW Firewall Guide](https://help.ubuntu.com/community/UFW)
+- [Python Virtual Environments](https://docs.python.org/3/tutorial/venv.html)
+
+---
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how to get started:
+To contribute to these scripts:
 
-### Development Setup
-```bash
-# Fork and clone
-git clone https://github.com/your-username/nq-scripts.git
-cd nq-scripts
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly on a clean Ubuntu/Debian system
+5. Submit a pull request
 
-# Create feature branch
-git checkout -b feature/your-feature-name
+---
 
-# Test your changes
-bash -n bash_scripts/install_quran_api.sh
-DEBUG=1 ./bash_scripts/install_quran_api.sh
-```
+## 📄 License
 
-## 📞 Support & Community
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### Getting Help
+---
 
-- 📖 **Documentation**: This README and inline script comments
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/NatiqQuran/quran-api/issues)
-- 📧 **Email**: Contact development team for enterprise support
+## 👥 Support
 
-### Useful Resources
+For issues, questions, or contributions:
 
-- [NatiqQuran API Documentation](https://github.com/NatiqQuran/quran-api)
-- [Docker Official Documentation](https://hub.docker.com/r/natiqquran/nq-api)
-- [Nginx Configuration Guide](https://nginx.org/en/docs/)
+- **GitHub Issues**: [Create an issue](https://github.com/natiq-foundation/nq-scripts/issues)
+- **Documentation**: See individual script headers for detailed information
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by the NatiqQuran Development Team**
-
-[![GitHub Stars](https://img.shields.io/github/stars/natiq-foundation/nq-scripts?style=social)](https://github.com/natiq-foundation/nq-scripts/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/natiq-foundation/nq-scripts?style=social)](https://github.com/natiq-foundation/nq-scripts/network/members)
-
-[🌟 Star on GitHub](https://github.com/NatiqQuran/quran-api) • [🐛 Report Issues](https://github.com/NatiqQuran/quran-api/issues) • [💡 Request Features](https://github.com/NatiqQuran/quran-api/issues/new)
-
-*Last Updated: 2025*
+**Built with ❤️ for the NatiqQuran project**
 
 </div>

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-# Launch Script
 # Description: Handles Git, Docker installation and firewall setup for server
 # Version: 0.1
 # Author: Natiq dev Team
