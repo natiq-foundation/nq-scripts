@@ -4,8 +4,8 @@
 # NatiqQuran API Full Setup Script
 #==============================================================================
 # Description: Orchestrates the complete setup process for NatiqQuran API
-#              by executing startup, docker-init, and importer scripts in sequence.
-# Version: 1.0.0
+#              by executing startup and docker-init scripts in sequence.
+# Version: 2.0.0
 # Author: Natiq Development Team
 # Usage: 
 #   Interactive menu: ./full_setup.sh
@@ -19,16 +19,13 @@ set -euo pipefail
 # SCRIPT METADATA
 #==============================================================================
 readonly SCRIPT_NAME="$(basename "$0")"
-readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION="2.0.0"
 readonly SCRIPT_AUTHOR="Natiq Development Team"
 
 #==============================================================================
 # PROJECT CONFIGURATION
 #==============================================================================
 readonly PROJECT_FOLDER="quran-api"
-readonly REPOSITORY_URL="https://github.com/natiq-foundation/nq-scripts.git"
-readonly REPOSITORY_FOLDER="nq-scripts"
-readonly SCRIPTS_SUBFOLDER="bash_scripts"
 
 #==============================================================================
 # REMOTE SCRIPT URLS
@@ -69,7 +66,6 @@ INITIAL_WORKING_DIR="$(pwd)"    # Store initial directory for cleanup
 # Script-specific options
 STARTUP_OPTIONS=()
 DOCKER_INIT_OPTIONS=()
-IMPORTER_OPTIONS=()
 
 #==============================================================================
 # LOGGING FUNCTIONS
@@ -210,7 +206,7 @@ show_interactive_menu() {
     echo "Please select an option:"
     echo
     echo -e "  ${COLOR_GREEN}1)${COLOR_RESET} Full Setup"
-    echo "     └─ Run: startup → docker-init → importer"
+    echo "     └─ Run: startup → docker-init"
     echo
     echo -e "  ${COLOR_CYAN}2)${COLOR_RESET} Update Docker Environment"
     echo "     └─ Run: docker-init with -u flag"
@@ -278,12 +274,12 @@ run_full_setup_workflow() {
     echo
     
     # Step 1: Execute startup script
-    log_step "1/3" "Running startup script"
+    log_step "1/2" "Running startup script"
     download_and_execute_script "$STARTUP_SCRIPT_URL" "startup" "${STARTUP_OPTIONS[@]}"
     echo
     
     # Step 2: Setup Docker environment
-    log_step "2/3" "Setting up Docker environment"
+    log_step "2/2" "Setting up Docker environment"
     
     create_directory_if_not_exists "$PROJECT_FOLDER"
     change_directory_safely "$PROJECT_FOLDER"
@@ -292,31 +288,6 @@ run_full_setup_workflow() {
     docker_args+=("${DOCKER_INIT_OPTIONS[@]}")
     
     download_and_execute_script "$DOCKER_INIT_SCRIPT_URL" "docker-init" "${docker_args[@]}"
-    
-    return_to_initial_directory
-    echo
-    
-    # Step 3: Clone repository and run importer
-    log_step "3/3" "Running data importer"
-    
-    if [[ ! -d "$REPOSITORY_FOLDER" ]]; then
-        log_info "Cloning repository: $REPOSITORY_URL"
-        git clone "$REPOSITORY_URL"
-    else
-        log_info "Repository already exists, skipping clone"
-    fi
-    
-    change_directory_safely "$REPOSITORY_FOLDER/$SCRIPTS_SUBFOLDER"
-    
-    log_info "Executing local importer.sh"
-    if bash importer.sh "${IMPORTER_OPTIONS[@]}"; then
-        log_success "importer.sh completed successfully"
-    else
-        local exit_code=$?
-        log_error "importer.sh failed with exit code: $exit_code"
-        return_to_initial_directory
-        exit "$exit_code"
-    fi
     
     return_to_initial_directory
     echo
@@ -470,7 +441,7 @@ ${COLOR_BOLD}MODES:${COLOR_RESET}
         Shows interactive menu to select operation
 
     ${COLOR_GREEN}Full Setup Mode${COLOR_RESET} (--full)
-        Executes complete setup: startup → docker-init → importer
+        Executes complete setup: startup → docker-init
 
     ${COLOR_YELLOW}Update Mode${COLOR_RESET} (-u)
         Updates existing Docker environment only
@@ -518,7 +489,6 @@ ${COLOR_BOLD}WORKFLOW:${COLOR_RESET}
     ${COLOR_GREEN}Full Setup Mode:${COLOR_RESET}
         1. Execute startup.sh (system preparation)
         2. Create $PROJECT_FOLDER/ and run docker-init.sh
-        3. Clone nq-scripts repository and run importer.sh
 
     ${COLOR_YELLOW}Update Mode:${COLOR_RESET}
         1. Navigate to specified directory
@@ -528,7 +498,6 @@ ${COLOR_BOLD}WORKFLOW:${COLOR_RESET}
 ${COLOR_BOLD}REQUIREMENTS:${COLOR_RESET}
     - curl
     - bash
-    - git
 
 ${COLOR_BOLD}NOTE:${COLOR_RESET}
     Running without arguments shows an interactive menu.
